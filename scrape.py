@@ -4,7 +4,7 @@ import argparse
 from urllib.parse import urlencode
 
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -44,12 +44,11 @@ class Scrape(webdriver.Chrome):
         self.teardown = teardown
         options = webdriver.ChromeOptions()
         options.add_argument("--incognito")
-        # options.add_argument('headless')
+        # options.add_argument("headless")
         super(Scrape, self).__init__(options=options)
         self.maximize_window()
 
         self.get(url)
-        print("...scrolling into view yay")
         self.execute_script(
             "document.querySelector(`section[id='cars']`).scrollIntoView({ behavior: 'smooth', block: 'start'});"
         )
@@ -69,23 +68,35 @@ class Scrape(webdriver.Chrome):
             self.quit()
 
     def crawl(self):
-        """Main method"""
+        """Crawls the wep page till the last item is fetched,
+        then starts extracting information
+        """
         agg_no_cars = list()
         while True:
-            wrapper = self.find_element(By.XPATH, "//section[@id='cars']")
-            inventory = wrapper.find_element(
-                By.XPATH, "//div[@class='inventory grid car-item gutter-0 row']"
-            )
-            cars = inventory.find_elements(By.XPATH, "//div[@class='card']")
+            wrapper = self.find_element(By.CSS_SELECTOR, "section#cars")
+            try:
+                inventory = wrapper.find_element(
+                    By.CSS_SELECTOR, "div.inventory.car-item"
+                )
+            except NoSuchElementException:
+                print("No element found")
+                self.quit()
+
+            cars = inventory.find_elements(By.CSS_SELECTOR, "div.card")
             if agg_no_cars == cars:
+
+                # n o more cars to fetch
                 break
             agg_no_cars = cars
-            print("...scrolling")
+            print("scrolling")
+
+            # page works with infinite scroll,
+            # script to continue scrolling to bottome of view
             self.execute_script(
                 "document.querySelector(`section[id='cars']`).scrollIntoView({ behavior: 'smooth', block: 'end'});"
             )  # execute the js scroll
             try:
-                WebDriverWait(self, 5).until(
+                WebDriverWait(self, 2).until(
                     EC.presence_of_all_elements_located(
                         (By.CSS_SELECTOR, "section#cars div[class='hide']")
                     )

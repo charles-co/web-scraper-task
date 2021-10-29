@@ -1,4 +1,4 @@
-"""Scrape.py
+"""Extract.py
 """
 import asyncio
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -13,7 +13,7 @@ executor = ThreadPoolExecutor(10)
 
 
 class Extract(webdriver.Chrome):
-    """Scrape"""
+    """Extract"""
 
     columns = {
         "name": "Name",
@@ -34,7 +34,7 @@ class Extract(webdriver.Chrome):
 
         self.items = items
         self.df = pd.DataFrame(columns=self.columns.keys())
-        self.scraper(items[0])
+        self.extract()
 
     def extract(self):
 
@@ -50,7 +50,6 @@ class Extract(webdriver.Chrome):
 
     def scraper(self, item):
         url = item.find_element(By.CSS_SELECTOR, ".card a").get_attribute("href")
-        print(url)
         self.get(url)
         wrapper = self.find_element(By.CSS_SELECTOR, "#react .buyer .content-wrapper")
         try:
@@ -76,12 +75,14 @@ class Extract(webdriver.Chrome):
             key = summary.find_element(By.TAG_NAME, "th").text[:-1]
             value = summary.find_element(By.TAG_NAME, "td").text.replace("\n", " ")
             summary_dict.update({key: value})
-
-        options = (
-            wrapper.find_element(By.CSS_SELECTOR, "#options-table")
-            .find_element(By.TAG_NAME, "tbody")
-            .find_elements(By.TAG_NAME, "tr")[1:]
-        )
+        try:
+            options = (
+                wrapper.find_element(By.CSS_SELECTOR, "#options-table")
+                .find_element(By.TAG_NAME, "tbody")
+                .find_elements(By.TAG_NAME, "tr")[1:]
+            )
+        except NoSuchElementException:
+            options = []
 
         options_list = list()
 
@@ -95,12 +96,9 @@ class Extract(webdriver.Chrome):
                 else:
                     flag = False
             except NoSuchElementException:
-                print("ew")
+                pass
 
             if flag:
-                import pdb
-
-                pdb.set_trace()
                 options_list.append(option.find_element(By.TAG_NAME, "td").text)
         self.df = self.df.append(
             {
@@ -112,5 +110,6 @@ class Extract(webdriver.Chrome):
             ignore_index=True,
         )
 
-        self.df.rename(columns=self.columns)
+        self.df.rename(columns=self.columns, inplace=True)
         self.df.to_excel("result.xlsx")
+        print("succesfully saved !")
