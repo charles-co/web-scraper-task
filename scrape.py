@@ -47,7 +47,6 @@ class Scrape(webdriver.Chrome):
         # options.add_argument("headless")
         super(Scrape, self).__init__(options=options)
         self.maximize_window()
-
         self.get(url)
         self.execute_script(
             "document.querySelector(`section[id='cars']`).scrollIntoView({ behavior: 'smooth', block: 'start'});"
@@ -61,7 +60,6 @@ class Scrape(webdriver.Chrome):
         except TimeoutException:
             print("Timed out waiting for page to load")
             self.quit()
-        self.crawl()
 
     def __exit__(self, *args) -> None:
         if not self.teardown:
@@ -82,7 +80,7 @@ class Scrape(webdriver.Chrome):
                 print("No element found")
                 self.quit()
 
-            cars = inventory.find_elements(By.CSS_SELECTOR, "div.card")
+            cars = inventory.find_elements(By.CSS_SELECTOR, "div[class='card']")
             if agg_no_cars == cars:
 
                 # n o more cars to fetch
@@ -121,4 +119,4 @@ if __name__ == "__main__":
         choices=[str(x) for x in range(25, 501, 25)],
     )
     args = parser.parse_args()
-    Scrape(getattr(args, "radius"), getattr(args, "zipcode"), teardown=False)
+    Scrape(getattr(args, "radius"), getattr(args, "zipcode"), teardown=False).crawl()

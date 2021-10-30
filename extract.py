@@ -9,7 +9,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-executor = ThreadPoolExecutor(10)
+pd.set_option("display.max_columns", None)
 
 
 class Extract(webdriver.Chrome):
@@ -31,27 +31,35 @@ class Extract(webdriver.Chrome):
         options.add_argument("headless")
         super(Extract, self).__init__(options=options)
         self.maximize_window()
-
+        self.implicitly_wait(2)
         self.items = items
-        self.df = pd.DataFrame(columns=self.columns.keys())
-        self.extract()
+        self.loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self.extract())
 
-    def extract(self):
+    async def extract(self):
+        print(len(self.items))
+        with ThreadPoolExecutor() as executor:
+            futures = [
+                await self.loop.run_in_executor(executor, self.scraper, item)
+                for item in self.items
+            ]
+        res = await asyncio.gather(*futures, return_exceptions=True)
+        df = pd.DataFrame(res, columns=self.columns.keys())
+        df.rename(columns=self.columns, inplace=True)
+        df.to_excel("result_full.xlsx")
+        print("successfully saved :)!")
 
-        loop = asyncio.get_event_loop()
-        for item in self.items:
-            self.scrape(item, loop=loop)
-
-        loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(loop)))
-
-    def scrape(self, item, *, loop):
-        executor = ThreadPoolExecutor(10)
-        loop.run_in_executor(executor, self.scraper, item)
-
-    def scraper(self, item):
+    async def scraper(self, item):
+        # print(item)
         url = item.find_element(By.CSS_SELECTOR, ".card a").get_attribute("href")
         self.get(url)
-        wrapper = self.find_element(By.CSS_SELECTOR, "#react .buyer .content-wrapper")
+        try:
+            wrapper = self.find_element(
+                By.CSS_SELECTOR, "#react .buyer .content-wrapper"
+            )
+        except NoSuchElementException:
+            print(url)
+
         try:
             price = wrapper.find_element(
                 By.CSS_SELECTOR, "#header-box .price-box > h2"
@@ -66,6 +74,7 @@ class Extract(webdriver.Chrome):
             title = " ".join(tmp[1].get_attribute("innerText").split()[1:])
         else:
             title = " ".join(tmp[0].get_attribute("innerText").split()[1:-2])
+
         summarries = wrapper.find_elements(
             By.CSS_SELECTOR, "#summary-table:nth-child(1) tbody tr"
         )[1:]
@@ -100,16 +109,10 @@ class Extract(webdriver.Chrome):
 
             if flag:
                 options_list.append(option.find_element(By.TAG_NAME, "td").text)
-        self.df = self.df.append(
-            {
-                "name": title,
-                "price": price,
-                "options": options_list,
-                "summary": summary_dict,
-            },
-            ignore_index=True,
-        )
-
-        self.df.rename(columns=self.columns, inplace=True)
-        self.df.to_excel("result.xlsx")
-        print("succesfully saved !")
+        data = {
+            "name": title,
+            "price": price,
+            "options": options_list,
+            "summary": summary_dict,
+        }
+        return data
