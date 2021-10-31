@@ -17,10 +17,10 @@ class Scrape(webdriver.Chrome):
 
     timeout = 3
     params = {
-        "body_style": "station%20wagon",
+        "body_style": "",
         "distance": None,
         "exterior_color_id": "",
-        "make": "",
+        "make": "Acura",
         "miles_max": "100000",
         "miles_min": "0",
         "model": "",
@@ -81,9 +81,10 @@ class Scrape(webdriver.Chrome):
                 self.quit()
 
             cars = inventory.find_elements(By.CSS_SELECTOR, "div[class='card']")
+            print((len(cars), len(agg_no_cars)))
             if agg_no_cars == cars:
 
-                # n o more cars to fetch
+                # no more cars to fetch
                 break
             agg_no_cars = cars
             print("scrolling")
@@ -91,11 +92,15 @@ class Scrape(webdriver.Chrome):
             # page works with infinite scroll,
             # script to continue scrolling to bottome of view
             self.execute_script(
-                "document.querySelector(`section[id='cars']`).scrollIntoView({ behavior: 'smooth', block: 'end'});"
-            )  # execute the js scroll
+                "document.querySelector(`section[id='cars']`).scrollIntoView({behavior: 'smooth', block: 'end'});"
+            )
+            import time
+
+            time.sleep(2)
+            # execute the js scroll
             try:
                 WebDriverWait(self, 2).until(
-                    EC.presence_of_all_elements_located(
+                    EC.presence_of_element_located(
                         (By.CSS_SELECTOR, "section#cars div[class='hide']")
                     )
                 )

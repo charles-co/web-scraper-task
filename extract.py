@@ -50,7 +50,6 @@ class Extract(webdriver.Chrome):
         print("successfully saved :)!")
 
     async def scraper(self, item):
-        # print(item)
         url = item.find_element(By.CSS_SELECTOR, ".card a").get_attribute("href")
         self.get(url)
         try:
@@ -88,7 +87,7 @@ class Extract(webdriver.Chrome):
             options = (
                 wrapper.find_element(By.CSS_SELECTOR, "#options-table")
                 .find_element(By.TAG_NAME, "tbody")
-                .find_elements(By.TAG_NAME, "tr")[1:]
+                .find_elements(By.TAG_NAME, "tr")
             )
         except NoSuchElementException:
             options = []
